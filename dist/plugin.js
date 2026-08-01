@@ -361,8 +361,8 @@ var capacitorCommunityBluetoothLe = (function (exports, core) {
                 if (onDisconnect) {
                     const key = `disconnected|${deviceId}`;
                     await ((_a = this.eventListeners.get(key)) === null || _a === void 0 ? void 0 : _a.remove());
-                    const listener = await BluetoothLe.addListener(key, () => {
-                        onDisconnect(deviceId);
+                    const listener = await BluetoothLe.addListener(key, (disconnectReason) => {
+                        onDisconnect(deviceId, disconnectReason);
                     });
                     this.eventListeners.set(key, listener);
                 }

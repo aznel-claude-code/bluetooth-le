@@ -294,7 +294,7 @@
       },
       {
         "name": "connect",
-        "signature": "(deviceId: string, onDisconnect?: ((deviceId: string) => void) | undefined, options?: ConnectClientOptions | undefined) => Promise<void>",
+        "signature": "(deviceId: string, onDisconnect?: ((deviceId: string, disconnectReason?: DisconnectReason | undefined) => void) | undefined, options?: ConnectClientOptions | undefined) => Promise<void>",
         "parameters": [
           {
             "name": "deviceId",
@@ -303,8 +303,8 @@
           },
           {
             "name": "onDisconnect",
-            "docs": "Optional disconnect callback function that will be used when the device disconnects",
-            "type": "((deviceId: string) => void) | undefined"
+            "docs": "Optional disconnect callback function that will be used when the device disconnects.\nReceives the platform's reason for the drop as a second argument on **Android**, where the GATT status\ndistinguishes a peripheral that hung up (19) from a link that timed out (8) or a local close (22).",
+            "type": "((deviceId: string, disconnectReason?: DisconnectReason | undefined) => void) | undefined"
           },
           {
             "name": "options",
@@ -320,7 +320,7 @@
           },
           {
             "name": "param",
-            "text": "onDisconnect Optional disconnect callback function that will be used when the device disconnects"
+            "text": "onDisconnect Optional disconnect callback function that will be used when the device disconnects.\nReceives the platform's reason for the drop as a second argument on **Android**, where the GATT status\ndistinguishes a peripheral that hung up (19) from a link that timed out (8) or a local close (22)."
           },
           {
             "name": "param",
@@ -329,6 +329,7 @@
         ],
         "docs": "Connect to a peripheral BLE device. For an example, see [usage](#usage).",
         "complexTypes": [
+          "DisconnectReason",
           "ConnectClientOptions"
         ],
         "slug": "connect"
@@ -2647,6 +2648,29 @@
             "DataView"
           ],
           "type": "DataView"
+        }
+      ]
+    },
+    {
+      "name": "DisconnectReason",
+      "slug": "disconnectreason",
+      "docs": "Why a connection ended, as the platform reported it.\nOnly available on **Android**, where every connection state change carries a\nGATT status; other platforms report a disconnect with no reason attached.",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "status",
+          "tags": [],
+          "docs": "The Android GATT status for the disconnection, e.g. `8` for a link\nsupervision timeout, `19` for a peripheral that closed the connection\nitself, `22` for a local close.",
+          "complexTypes": [],
+          "type": "number"
+        },
+        {
+          "name": "statusName",
+          "tags": [],
+          "docs": "The name of the status code, or `unnamed` for a code with no published\nname in the Android GATT status list.",
+          "complexTypes": [],
+          "type": "string"
         }
       ]
     },

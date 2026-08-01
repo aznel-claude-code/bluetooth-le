@@ -144,6 +144,24 @@ export interface ServiceDataFilter {
      */
     mask?: DataView;
 }
+/**
+ * Why a connection ended, as the platform reported it.
+ * Only available on **Android**, where every connection state change carries a
+ * GATT status; other platforms report a disconnect with no reason attached.
+ */
+export interface DisconnectReason {
+    /**
+     * The Android GATT status for the disconnection, e.g. `8` for a link
+     * supervision timeout, `19` for a peripheral that closed the connection
+     * itself, `22` for a local close.
+     */
+    status: number;
+    /**
+     * The name of the status code, or `unnamed` for a code with no published
+     * name in the Android GATT status list.
+     */
+    statusName: string;
+}
 export interface BleDevice {
     /**
      * ID of the device, which will be needed for further calls.
@@ -341,6 +359,7 @@ export interface BluetoothLePlugin {
     getConnectedDevices(options: GetConnectedDevicesOptions): Promise<GetDevicesResult>;
     getBondedDevices(): Promise<GetDevicesResult>;
     addListener(eventName: 'onEnabledChanged', listenerFunc: (result: BooleanResult) => void): Promise<PluginListenerHandle>;
+    addListener(eventName: `disconnected|${string}`, listenerFunc: (event: DisconnectReason) => void): Promise<PluginListenerHandle>;
     addListener(eventName: string, listenerFunc: (event: ReadResult) => void): Promise<PluginListenerHandle>;
     addListener(eventName: 'onScanResult', listenerFunc: (result: ScanResultInternal) => void): Promise<PluginListenerHandle>;
     connect(options: ConnectOptions): Promise<void>;

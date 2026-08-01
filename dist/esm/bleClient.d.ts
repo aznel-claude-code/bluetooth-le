@@ -1,5 +1,5 @@
 import type { DisplayStrings } from './config';
-import type { BleDevice, BleService, ConnectionPriority, ConnectClientOptions, InitializeOptions, RequestBleDeviceOptions, ScanResult, TimeoutOptions } from './definitions';
+import type { BleDevice, BleService, ConnectionPriority, ConnectClientOptions, DisconnectReason, InitializeOptions, RequestBleDeviceOptions, ScanResult, TimeoutOptions } from './definitions';
 export interface BleClientInterface {
     /**
      * Initialize Bluetooth Low Energy (BLE). If it fails, BLE might be unavailable on this device.
@@ -111,10 +111,12 @@ export interface BleClientInterface {
     /**
      * Connect to a peripheral BLE device. For an example, see [usage](#usage).
      * @param deviceId  The ID of the device to use (obtained from [requestDevice](#requestDevice) or [requestLEScan](#requestLEScan))
-     * @param onDisconnect Optional disconnect callback function that will be used when the device disconnects
+     * @param onDisconnect Optional disconnect callback function that will be used when the device disconnects.
+     * Receives the platform's reason for the drop as a second argument on **Android**, where the GATT status
+     * distinguishes a peripheral that hung up (19) from a link that timed out (8) or a local close (22).
      * @param options Options for plugin call
      */
-    connect(deviceId: string, onDisconnect?: (deviceId: string) => void, options?: ConnectClientOptions): Promise<void>;
+    connect(deviceId: string, onDisconnect?: (deviceId: string, disconnectReason?: DisconnectReason) => void, options?: ConnectClientOptions): Promise<void>;
     /**
      * Create a bond with a peripheral BLE device.
      * Only available on **Android**. On iOS bonding is handled by the OS.
@@ -254,7 +256,7 @@ declare class BleClientClass implements BleClientInterface {
     getDevices(deviceIds: string[]): Promise<BleDevice[]>;
     getConnectedDevices(services: string[]): Promise<BleDevice[]>;
     getBondedDevices(): Promise<BleDevice[]>;
-    connect(deviceId: string, onDisconnect?: (deviceId: string) => void, options?: ConnectClientOptions): Promise<void>;
+    connect(deviceId: string, onDisconnect?: (deviceId: string, disconnectReason?: DisconnectReason) => void, options?: ConnectClientOptions): Promise<void>;
     createBond(deviceId: string, options?: TimeoutOptions): Promise<void>;
     isBonded(deviceId: string): Promise<boolean>;
     disconnect(deviceId: string): Promise<void>;
