@@ -88,6 +88,10 @@ class Device(
         private const val STATE_CONNECTED = 2
         private const val CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb"
         private const val REQUEST_MTU = 512
+
+        // How long onMtuChanged is waited for before the connect call reports
+        // success without it. See onServicesDiscovered.
+        private const val MTU_EXCHANGE_TIMEOUT = 2000L
     }
 
     private var connectionState = STATE_DISCONNECTED
@@ -109,6 +113,15 @@ class Device(
             callbacksHandlerThread.start()
             callbacksHandler = Handler(callbacksHandlerThread.looper)
         }
+    }
+
+    // The GATT callbacks are delivered on callbacksHandler wherever the SDK
+    // level allows one, so the MTU fallback posts there too: it calls resolve,
+    // which mutates callbackMap, and a second thread would race onMtuChanged
+    // for the same entry.
+    private fun mtuFallbackHandler(): Handler {
+        return if (::callbacksHandler.isInitialized) callbacksHandler
+        else Handler(Looper.getMainLooper())
     }
 
     private fun cleanupCallbacksHandlerThread() {
@@ -177,6 +190,19 @@ class Device(
                 if (connectCallOngoing()) {
                     // Try requesting a larger MTU. Maximally supported MTU will be selected.
                     requestMtu(REQUEST_MTU)
+                    // A larger MTU is an optimization, not a precondition for
+                    // being connected, so the connect call must not be gated on
+                    // it. The exchange never answers when another app already
+                    // holds the ACL link — its MTU is negotiated for the link,
+                    // and the request lands on a wait list that never drains —
+                    // which reported an established link with discovered
+                    // services as "Connection timeout." 30s later, and tore it
+                    // down (2026-08-01, Garmin Connect holding the same
+                    // sensor). Whichever of this and onMtuChanged runs first
+                    // resolves; the loser is a no-op.
+                    mtuFallbackHandler().postDelayed({
+                        resolve("connect", "Connected.")
+                    }, MTU_EXCHANGE_TIMEOUT)
                 }
             } else {
                 reject("discoverServices", "Service discovery failed.")
