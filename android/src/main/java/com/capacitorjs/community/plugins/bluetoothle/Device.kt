@@ -355,7 +355,10 @@ class Device(
      * - request MTU
      */
     fun connect(
-        timeout: Long, skipDescriptorDiscovery: Boolean, callback: (CallbackResponse) -> Unit
+        timeout: Long,
+        skipDescriptorDiscovery: Boolean,
+        autoConnect: Boolean,
+        callback: (CallbackResponse) -> Unit
     ) {
         val key = "connect"
         this.skipDescriptorDiscovery = skipDescriptorDiscovery
@@ -370,7 +373,7 @@ class Device(
             initializeCallbacksHandlerThread()
             bluetoothGatt = device.connectGatt(
                 context,
-                false,
+                autoConnect,
                 gattCallback,
                 BluetoothDevice.TRANSPORT_LE,
                 BluetoothDevice.PHY_OPTION_NO_PREFERRED,
@@ -378,11 +381,11 @@ class Device(
             )
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             bluetoothGatt = device.connectGatt(
-                context, false, gattCallback, BluetoothDevice.TRANSPORT_LE
+                context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE
             )
         } else {
             bluetoothGatt = device.connectGatt(
-                context, false, gattCallback
+                context, autoConnect, gattCallback
             )
         }
         setConnectionTimeout(key, "Connection timeout.", bluetoothGatt, timeout)
@@ -509,7 +512,15 @@ class Device(
             return
         }
         bluetoothGatt?.disconnect()
-        setTimeout(key, "Disconnection timeout.", timeout)
+        // A disconnect that never answers must still CLOSE the client, which a
+        // plain setTimeout does not do — it only rejects, leaving the
+        // BluetoothGatt registered. Android allows a small, fixed number of GATT
+        // client registrations per device; leaking one per failed disconnect
+        // walks the app toward a state where nothing connects and scans return
+        // nothing, which is what a killed-while-connected app reproduces on
+        // every retry (2026-08-01: "Disconnection timeout." once per 20s, for
+        // minutes). setConnectionTimeout closes and cleans up before rejecting.
+        setConnectionTimeout(key, "Disconnection timeout.", bluetoothGatt, timeout)
     }
 
     fun getServices(): MutableList<BluetoothGattService> {

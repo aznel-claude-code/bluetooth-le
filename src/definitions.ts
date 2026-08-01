@@ -207,6 +207,20 @@ export interface ConnectClientOptions extends TimeoutOptions {
    * @default false
    */
   skipDescriptorDiscovery?: boolean;
+
+  /**
+   * Hand the connection to the Android stack to complete whenever the peripheral
+   * becomes reachable, instead of dialing it directly
+   * (`BluetoothDevice.connectGatt`'s `autoConnect`). A direct dial to a device
+   * the platform still believes is connected — the state a killed-while-connected
+   * app leaves behind — can go unanswered entirely, producing a timeout with no
+   * GATT status because no state change is ever delivered. The background path
+   * reconnects from that state. Slower to establish a first connection, so it
+   * suits reconnecting to a known device rather than connecting to a freshly
+   * scanned one. Android only; ignored on iOS and web.
+   * @default false
+   */
+  autoConnect?: boolean;
 }
 
 export interface ConnectOptions extends DeviceIdOptions, ConnectClientOptions {}

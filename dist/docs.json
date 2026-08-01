@@ -2692,6 +2692,18 @@
           "docs": "Skip descriptor discovery during connection to improve connection speed.\nWhen enabled, descriptors will not be available in the services structure.",
           "complexTypes": [],
           "type": "boolean | undefined"
+        },
+        {
+          "name": "autoConnect",
+          "tags": [
+            {
+              "text": "false",
+              "name": "default"
+            }
+          ],
+          "docs": "Hand the connection to the Android stack to complete whenever the peripheral\nbecomes reachable, instead of dialing it directly\n(`BluetoothDevice.connectGatt`'s `autoConnect`). A direct dial to a device\nthe platform still believes is connected — the state a killed-while-connected\napp leaves behind — can go unanswered entirely, producing a timeout with no\nGATT status because no state change is ever delivered. The background path\nreconnects from that state. Slower to establish a first connection, so it\nsuits reconnecting to a known device rather than connecting to a freshly\nscanned one. Android only; ignored on iOS and web.",
+          "complexTypes": [],
+          "type": "boolean | undefined"
         }
       ]
     },

@@ -464,7 +464,8 @@ class BluetoothLe : Plugin() {
         val device = getOrCreateDevice(call) ?: return
         val timeout = call.getFloat("timeout", CONNECTION_TIMEOUT)!!.toLong()
         val skipDescriptorDiscovery = call.getBoolean("skipDescriptorDiscovery", false)!!
-        device.connect(timeout, skipDescriptorDiscovery) { response ->
+        val autoConnect = call.getBoolean("autoConnect", false)!!
+        device.connect(timeout, skipDescriptorDiscovery, autoConnect) { response ->
             run {
                 if (response.success) {
                     call.resolve()
