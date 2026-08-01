@@ -36,6 +36,30 @@ class TimeoutHandler(
     val handler: Handler
 )
 
+/**
+ * The GATT status codes a connection callback actually reports, named.
+ *
+ * Android hands these to onConnectionStateChange and they are the only
+ * evidence of WHY a link failed or dropped — 133 (a local stack failure,
+ * usually retryable), 8 (the link timed out: out of range, or a peripheral
+ * that stopped answering) and 19 (the peripheral closed the connection
+ * itself) point at three different culprits and three different remedies.
+ * Anything not listed is reported by number alone.
+ */
+fun gattStatusName(status: Int): String {
+    return when (status) {
+        0 -> "GATT_SUCCESS"
+        8 -> "GATT_CONN_TIMEOUT"
+        19 -> "GATT_CONN_TERMINATE_PEER_USER"
+        22 -> "GATT_CONN_TERMINATE_LOCAL_HOST"
+        34 -> "GATT_CONN_LMP_TIMEOUT"
+        62 -> "GATT_CONN_FAIL_ESTABLISH"
+        133 -> "GATT_ERROR"
+        257 -> "GATT_FAILURE"
+        else -> "unnamed"
+    }
+}
+
 fun <T> ConcurrentLinkedQueue<T>.popFirstMatch(predicate: (T) -> Boolean): T? {
     synchronized(this) {
         val iterator = this.iterator()
@@ -115,6 +139,8 @@ class Device(
         override fun onConnectionStateChange(
             gatt: BluetoothGatt, status: Int, newState: Int
         ) {
+            val statusText = "status $status (${gattStatusName(status)})"
+            Logger.debug(TAG, "onConnectionStateChange: newState $newState, $statusText")
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 connectionState = STATE_CONNECTED
                 // service discovery is required to use services
@@ -128,9 +154,19 @@ class Device(
                 onDisconnect()
                 bluetoothGatt?.close()
                 bluetoothGatt = null
-                Logger.debug(TAG, "Disconnected from GATT server.")
+                Logger.debug(TAG, "Disconnected from GATT server: $statusText")
                 cleanup()
-                resolve("disconnect", "Disconnected.")
+                // A connect still in flight has just FAILED, and this callback
+                // carries the platform's own reason for it. Rejecting here is
+                // what makes that reason reachable at all: otherwise the call
+                // stays pending until its connection timeout expires, so every
+                // GATT-level connect failure — 133 from the local stack, 8
+                // from a link that dropped, 19 from a peripheral that hung up
+                // — reaches the caller as the same contentless "Connection
+                // timeout.", one whole timeout late. A no-op on an ordinary
+                // disconnect, where no connect is registered.
+                reject("connect", "Connection failed with $statusText.")
+                resolve("disconnect", "Disconnected with $statusText.")
             }
         }
 
@@ -748,12 +784,23 @@ class Device(
         }
     }
 
+    // Both timeout setters dequeue their own entry as it FIRES, before doing
+    // anything else. Leaving it to resolve/reject is not enough: those only
+    // reach the popFirstMatch when the key is still registered in callbackMap,
+    // so a timer that fires after its call already settled leaves a dead entry
+    // behind forever. The next resolve for that key then pops the DEAD entry
+    // instead of the live timer it meant to cancel — and the live one stays
+    // armed and fires later into a healthy connection, where
+    // setConnectionTimeout's handler runs gatt.disconnect() and gatt.close()
+    // with no callback left to tell anyone.
     private fun setTimeout(
         key: String, message: String, timeout: Long
     ) {
         val handler = Handler(Looper.getMainLooper())
-        timeoutQueue.add(TimeoutHandler(key, handler))
+        val timeoutHandler = TimeoutHandler(key, handler)
+        timeoutQueue.add(timeoutHandler)
         handler.postDelayed({
+            timeoutQueue.remove(timeoutHandler)
             reject(key, message)
         }, timeout)
     }
@@ -765,8 +812,10 @@ class Device(
         timeout: Long,
     ) {
         val handler = Handler(Looper.getMainLooper())
-        timeoutQueue.add(TimeoutHandler(key, handler))
+        val timeoutHandler = TimeoutHandler(key, handler)
+        timeoutQueue.add(timeoutHandler)
         handler.postDelayed({
+            timeoutQueue.remove(timeoutHandler)
             connectionState = STATE_DISCONNECTED
             gatt?.disconnect()
             gatt?.close()
