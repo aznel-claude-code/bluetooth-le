@@ -628,16 +628,16 @@ and [getDevices](https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth/getD
 ### connect(...)
 
 ```typescript
-connect(deviceId: string, onDisconnect?: ((deviceId: string) => void) | undefined, options?: ConnectClientOptions | undefined) => Promise<void>
+connect(deviceId: string, onDisconnect?: ((deviceId: string, disconnectReason?: DisconnectReason | undefined) => void) | undefined, options?: ConnectClientOptions | undefined) => Promise<void>
 ```
 
 Connect to a peripheral BLE device. For an example, see [usage](#usage).
 
-| Param              | Type                                                                  | Description                                                                                                    |
-| ------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **`deviceId`**     | <code>string</code>                                                   | The ID of the device to use (obtained from [requestDevice](#requestDevice) or [requestLEScan](#requestLEScan)) |
-| **`onDisconnect`** | <code>((deviceId: string) =&gt; void)</code>                          | Optional disconnect callback function that will be used when the device disconnects                            |
-| **`options`**      | <code><a href="#connectclientoptions">ConnectClientOptions</a></code> | Options for plugin call                                                                                        |
+| Param              | Type                                                                                                              | Description                                                                                                                                                                                                                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`deviceId`**     | <code>string</code>                                                                                               | The ID of the device to use (obtained from [requestDevice](#requestDevice) or [requestLEScan](#requestLEScan))                                                                                                                                                                                 |
+| **`onDisconnect`** | <code>((deviceId: string, disconnectReason?: <a href="#disconnectreason">DisconnectReason</a>) =&gt; void)</code> | Optional disconnect callback function that will be used when the device disconnects. Receives the platform's reason for the drop as a second argument on **Android**, where the GATT status distinguishes a peripheral that hung up (19) from a link that timed out (8) or a local close (22). |
+| **`options`**      | <code><a href="#connectclientoptions">ConnectClientOptions</a></code>                                             | Options for plugin call                                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -969,6 +969,17 @@ Stop listening to the changes of the value of a characteristic. For an example, 
 | **`serviceData`**      | <code>{ [key: string]: [DataView](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/DataView); }</code> | Service data, key is a service UUID and value is the data.                                                                                                                                                                                                                                            |
 | **`uuids`**            | <code>string[]</code>                                                                                                            | Advertised services.                                                                                                                                                                                                                                                                                  |
 | **`rawAdvertisement`** | <code>[DataView](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/DataView)</code>                     | Raw advertisement data (**Android** only).                                                                                                                                                                                                                                                            |
+
+#### DisconnectReason
+
+Why a connection ended, as the platform reported it.
+Only available on **Android**, where every connection state change carries a
+GATT status; other platforms report a disconnect with no reason attached.
+
+| Prop             | Type                | Description                                                                                                                                                              |
+| ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`status`**     | <code>number</code> | The Android GATT status for the disconnection, e.g. `8` for a link supervision timeout, `19` for a peripheral that closed the connection itself, `22` for a local close. |
+| **`statusName`** | <code>string</code> | The name of the status code, or `unnamed` for a code with no published name in the Android GATT status list.                                                             |
 
 #### ConnectClientOptions
 

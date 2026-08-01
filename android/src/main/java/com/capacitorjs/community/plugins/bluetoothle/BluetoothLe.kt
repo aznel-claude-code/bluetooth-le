@@ -475,9 +475,18 @@ class BluetoothLe : Plugin() {
         }
     }
 
-    private fun onDisconnect(deviceId: String) {
+    // The status is the platform's reason for the drop, and this event is the
+    // only place it can reach the app: a link that dies on its own settles no
+    // pending call, so nothing else is left to carry it. Without it "the
+    // peripheral hung up" (19), "the link supervision timer expired" (8) and
+    // "the local host closed it" (22) are one indistinguishable silent
+    // disconnect.
+    private fun onDisconnect(deviceId: String, status: Int) {
         try {
-            notifyListeners("disconnected|${deviceId}", null)
+            val disconnectResult = JSObject()
+            disconnectResult.put("status", status)
+            disconnectResult.put("statusName", gattStatusName(status))
+            notifyListeners("disconnected|${deviceId}", disconnectResult)
         } catch (e: ConcurrentModificationException) {
             Logger.error(TAG, "Error in notifyListeners: ${e.localizedMessage}", e)
         }
@@ -1029,8 +1038,8 @@ class BluetoothLe : Plugin() {
         return try {
             val newDevice = Device(
                 activity.applicationContext, bluetoothAdapter!!, deviceId
-            ) {
-                onDisconnect(deviceId)
+            ) { status ->
+                onDisconnect(deviceId, status)
             }
             deviceMap[deviceId] = newDevice
             newDevice

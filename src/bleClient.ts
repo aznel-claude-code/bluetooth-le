@@ -9,6 +9,7 @@ import type {
   ConnectionPriority,
   ConnectClientOptions,
   Data,
+  DisconnectReason,
   InitializeOptions,
   ReadResult,
   RequestBleDeviceOptions,
@@ -149,10 +150,16 @@ export interface BleClientInterface {
   /**
    * Connect to a peripheral BLE device. For an example, see [usage](#usage).
    * @param deviceId  The ID of the device to use (obtained from [requestDevice](#requestDevice) or [requestLEScan](#requestLEScan))
-   * @param onDisconnect Optional disconnect callback function that will be used when the device disconnects
+   * @param onDisconnect Optional disconnect callback function that will be used when the device disconnects.
+   * Receives the platform's reason for the drop as a second argument on **Android**, where the GATT status
+   * distinguishes a peripheral that hung up (19) from a link that timed out (8) or a local close (22).
    * @param options Options for plugin call
    */
-  connect(deviceId: string, onDisconnect?: (deviceId: string) => void, options?: ConnectClientOptions): Promise<void>;
+  connect(
+    deviceId: string,
+    onDisconnect?: (deviceId: string, disconnectReason?: DisconnectReason) => void,
+    options?: ConnectClientOptions,
+  ): Promise<void>;
 
   /**
    * Create a bond with a peripheral BLE device.
@@ -479,15 +486,15 @@ class BleClientClass implements BleClientInterface {
 
   async connect(
     deviceId: string,
-    onDisconnect?: (deviceId: string) => void,
+    onDisconnect?: (deviceId: string, disconnectReason?: DisconnectReason) => void,
     options?: ConnectClientOptions,
   ): Promise<void> {
     await this.queue(async () => {
       if (onDisconnect) {
-        const key = `disconnected|${deviceId}`;
+        const key: `disconnected|${string}` = `disconnected|${deviceId}`;
         await this.eventListeners.get(key)?.remove();
-        const listener = await BluetoothLe.addListener(key, () => {
-          onDisconnect(deviceId);
+        const listener = await BluetoothLe.addListener(key, (disconnectReason?: DisconnectReason) => {
+          onDisconnect(deviceId, disconnectReason);
         });
         this.eventListeners.set(key, listener);
       }
